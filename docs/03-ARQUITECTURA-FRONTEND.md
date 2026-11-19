@@ -20,4 +20,4 @@ El access token (15 min) se guarda solo en memoria y el refresh token en `localS
 - **Expo SDK 52 y Expo Router.** Los componentes nativos van separados de los web y solo se comparten tokens, tipos y cliente API.
 - **Metro** está configurado para el monorepo (`metro.config.js`).
 - **Builds:** `eas.json` con perfiles `development`, `preview` (APK) y `production` (AAB).
-- **Fase 0:** pantalla que verifica la conexión real con la API.
+- **Fase 1:** inicio con el estado real de la conexión y pantalla de participante (`/join`) que guarda el apodo con AsyncStorage.
