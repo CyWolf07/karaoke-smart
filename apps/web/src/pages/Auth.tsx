@@ -44,7 +44,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   });
 
   return (
-    <main className="grid min-h-screen place-items-center px-4">
+    <main className="grid min-h-svh place-items-center px-4">
       <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground">

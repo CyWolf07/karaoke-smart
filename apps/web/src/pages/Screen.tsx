@@ -31,7 +31,7 @@ export function ScreenPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background p-6 sm:p-12">
+    <div className="flex min-h-dvh flex-col bg-background p-6 sm:p-12">
       <header className="flex items-center justify-between">
         <span className="flex items-center gap-3 text-xl font-bold sm:text-2xl">
           <Mic className="text-primary" /> Karaoke Smart
@@ -51,7 +51,7 @@ export function ScreenPage() {
             <button
               onClick={() => document.documentElement.requestFullscreen().catch(() => undefined)}
               aria-label="Pantalla completa"
-              className="grid h-11 w-11 place-items-center rounded-full text-muted hover:bg-surface-raised"
+              className="pressable grid h-11 w-11 place-items-center rounded-full text-muted hover:bg-surface-raised"
             >
               <Maximize size={20} />
             </button>

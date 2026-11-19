@@ -24,7 +24,7 @@ const OPTIONS = [
 
 export function HomePage() {
   return (
-    <div className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center px-4 py-10">
+    <div className="mx-auto flex min-h-svh max-w-4xl flex-col justify-center px-4 py-10">
       <div className="mb-10 flex items-center gap-3">
         <span className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground">
           <Mic size={24} />
@@ -39,7 +39,7 @@ export function HomePage() {
           <Link
             key={to}
             to={to}
-            className="group rounded-lg border border-border bg-surface-raised p-6 transition-colors hover:border-primary"
+            className="group rounded-lg border border-border bg-surface-raised pressable p-6 hover:border-primary"
           >
             <Icon className="mb-4 text-primary" size={28} />
             <h2 className="mb-1 font-semibold">{title}</h2>

@@ -29,7 +29,7 @@ export function JoinPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col px-4 py-6">
+    <div className="mx-auto flex min-h-svh max-w-md flex-col px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1.5rem+env(safe-area-inset-top,0px))]">
       <header className="mb-10 flex items-center justify-between">
         <span className="flex items-center gap-2 font-bold">
           <Mic className="text-primary" size={20} /> Karaoke Smart
@@ -53,6 +53,8 @@ export function JoinPage() {
             setSaved(false);
           }}
           placeholder="Tu apodo"
+          autoComplete="nickname"
+          enterKeyHint="done"
           maxLength={30}
           aria-invalid={Boolean(error)}
         />

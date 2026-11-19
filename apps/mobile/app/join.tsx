@@ -69,7 +69,11 @@ export default function Join() {
       {error && <Text style={styles.error}>{error}</Text>}
 
       <Pressable
-        style={[styles.primary, saved && { opacity: 0.6 }]}
+        style={({ pressed }) => [
+          styles.primary,
+          saved && { opacity: 0.6 },
+          pressed && styles.pressed,
+        ]}
         onPress={submit}
         disabled={saved}
       >
@@ -89,6 +93,8 @@ export default function Join() {
 }
 
 const styles = StyleSheet.create({
+  // Respuesta inmediata al apoyar el dedo (equivalente nativo de :active).
+  pressed: { transform: [{ scale: 0.97 }], opacity: 0.85 },
   container: { flex: 1, padding: spacing.lg, paddingTop: 64, gap: spacing.md },
   back: { marginBottom: spacing.md },
   backText: { color: colors.primary, fontSize: 16 },

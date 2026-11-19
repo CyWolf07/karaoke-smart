@@ -13,13 +13,13 @@ const NAV = [
 
 const sideLink = (active: boolean) =>
   cn(
-    'flex w-full items-center gap-3 rounded-full px-4 py-3 text-sm font-medium transition-colors',
+    'flex w-full items-center gap-3 rounded-full px-4 py-3 text-sm font-medium pressable',
     active ? 'bg-surface-raised text-foreground' : 'text-muted hover:text-foreground',
   );
 
 const bottomLink = (active: boolean) =>
   cn(
-    'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-xs',
+    'pressable flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-xs',
     active ? 'text-primary' : 'text-muted',
   );
 
@@ -34,8 +34,8 @@ export function AdminLayout() {
   });
 
   return (
-    <div className="min-h-screen md:grid md:grid-cols-[240px_1fr]">
-      <aside className="sticky top-0 hidden h-screen border-r border-border bg-surface p-4 md:flex md:flex-col">
+    <div className="min-h-dvh md:grid md:grid-cols-[240px_1fr]">
+      <aside className="sticky top-0 hidden h-dvh border-r border-border bg-surface p-4 md:flex md:flex-col">
         <div className="mb-8 flex items-center gap-2 px-2 font-bold">
           <Mic className="text-primary" size={22} /> Karaoke Smart
         </div>
@@ -62,7 +62,7 @@ export function AdminLayout() {
         </div>
       </aside>
 
-      <header className="flex items-center justify-between border-b border-border px-4 py-2 md:hidden">
+      <header className="flex items-center justify-between border-b border-border px-4 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] md:hidden">
         <span className="flex items-center gap-2 font-bold">
           <Mic className="text-primary" size={20} /> Karaoke Smart
         </span>
@@ -70,17 +70,17 @@ export function AdminLayout() {
           onClick={() => logout.mutate()}
           disabled={logout.isPending}
           aria-label="Cerrar sesión"
-          className="grid h-11 w-11 place-items-center rounded-full text-muted hover:bg-surface-raised"
+          className="pressable grid h-11 w-11 place-items-center rounded-full text-muted hover:bg-surface-raised"
         >
           <LogOut size={18} />
         </button>
       </header>
 
-      <main className="px-4 pb-24 pt-6 sm:px-8 md:pb-10 md:pt-10">
+      <main className="px-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] pt-6 sm:px-8 md:pb-10 md:pt-10">
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 flex border-t border-border bg-surface md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom,0px)] md:hidden">
         {NAV.map(({ to, end, label, icon: Icon }) => (
           <NavLink key={to} to={to} end={end} className={({ isActive }) => bottomLink(isActive)}>
             <Icon size={20} /> {label}

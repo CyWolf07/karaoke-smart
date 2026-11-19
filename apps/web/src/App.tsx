@@ -45,7 +45,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const { accessToken, restoring } = useAuth();
   const location = useLocation();
   if (restoring)
-    return <div className="grid min-h-screen place-items-center text-muted">Cargando…</div>;
+    return <div className="grid min-h-dvh place-items-center text-muted">Cargando…</div>;
   return accessToken ? (
     <>{children}</>
   ) : (

@@ -3,6 +3,8 @@ import { colors } from '@ks/design-tokens';
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
+  // :hover solo en dispositivos que realmente pueden hacer hover (evita hover pegado al tocar).
+  future: { hoverOnlyWhenSupported: true },
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {

@@ -49,11 +49,15 @@ export default function Home() {
       </View>
 
       <Link href="/join" asChild>
-        <Pressable style={styles.primary}>
+        <Pressable style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
           <Text style={styles.primaryText}>Soy participante</Text>
         </Pressable>
       </Link>
-      <Pressable style={styles.secondary} onPress={check} disabled={state.loading}>
+      <Pressable
+        style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
+        onPress={check}
+        disabled={state.loading}
+      >
         <Text style={styles.secondaryText}>Comprobar conexión</Text>
       </Pressable>
     </View>
@@ -61,6 +65,8 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
+  // Respuesta inmediata al apoyar el dedo (equivalente nativo de :active).
+  pressed: { transform: [{ scale: 0.97 }], opacity: 0.85 },
   container: {
     flex: 1,
     alignItems: 'center',
