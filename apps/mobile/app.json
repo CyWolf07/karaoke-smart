@@ -17,9 +17,13 @@
     },
     "extra": {
       "apiUrl": "http://10.0.2.2:3000",
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "03429fd8-8fe1-4d80-a414-fffe53b9b1be"
+        "projectId": "5e84776b-6375-4dcd-aad6-57166fa895b1"
       }
-    }
+    },
+    "owner": "cywolfs-team"
   }
 }
