@@ -31,4 +31,8 @@ export async function configureApp(app: INestApplication): Promise<void> {
     .addBearerAuth()
     .build();
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, doc));
+  // La raíz no es una página: se redirige a la documentación interactiva.
+  app
+    .getHttpAdapter()
+    .get('/', (_req: unknown, res: { redirect: (url: string) => void }) => res.redirect('/docs'));
 }
