@@ -1,0 +1,364 @@
+// Esquema inicial de Karaoke Smart (ver docs/05-BASE-DE-DATOS.md).
+// Regla: toda tabla de dominio lleva organization_id para aislamiento multi-organización.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleKey {
+  owner
+  admin
+  host
+  participant
+}
+
+enum RoomStatus {
+  open
+  closed
+}
+
+enum ConnectivityMode {
+  local
+  remote
+  hybrid
+}
+
+enum DeviceKind {
+  screen
+  admin
+  participant
+}
+
+enum QueueItemStatus {
+  pending
+  playing
+  played
+  skipped
+  removed
+}
+
+enum PlaybackState {
+  idle
+  playing
+  paused
+}
+
+enum ProviderKey {
+  youtube
+  spotify
+  local
+}
+
+enum LyricsFormat {
+  lrc
+  plain
+}
+
+enum AudioSourceKind {
+  phone
+  external
+}
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  memberships Membership[]
+  rooms       Room[]
+  devices     Device[]
+  tracks      Track[]
+  providers   MusicProvider[]
+  auditLogs   AuditLog[]
+  settings    Setting[]
+
+  @@map("organizations")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  memberships   Membership[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         RoleKey  @unique
+  description String
+  permissions String[]
+
+  memberships Membership[]
+
+  @@map("roles")
+}
+
+model Membership {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  roleId         String   @map("role_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id])
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+/// Refresh tokens rotativos. Solo se guarda el hash.
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  familyId   String    @map("family_id") @db.Uuid
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  userAgent  String?   @map("user_agent")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+model Room {
+  id               String           @id @default(uuid()) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  name             String
+  status           RoomStatus       @default(open)
+  connectivityMode ConnectivityMode @default(hybrid) @map("connectivity_mode")
+  joinCodeHash     String?          @unique @map("join_code_hash")
+  joinCodeExpires  DateTime?        @map("join_code_expires_at")
+  maxParticipants  Int              @default(50) @map("max_participants")
+  queueVersion     Int              @default(0) @map("queue_version")
+  createdById      String?          @map("created_by_id") @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at")
+  closedAt         DateTime?        @map("closed_at")
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  participants     RoomParticipant[]
+  devices          Device[]
+  queueItems       QueueItem[]
+  playbackSessions PlaybackSession[]
+  audioSessions    AudioSession[]
+
+  @@index([organizationId, status])
+  @@map("rooms")
+}
+
+model RoomParticipant {
+  id         String    @id @default(uuid()) @db.Uuid
+  roomId     String    @map("room_id") @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  nickname   String
+  role       RoleKey   @default(participant)
+  isBlocked  Boolean   @default(false) @map("is_blocked")
+  joinedAt   DateTime  @default(now()) @map("joined_at")
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at")
+  leftAt     DateTime? @map("left_at")
+
+  room              Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  queueItems        QueueItem[]
+  audioParticipants AudioParticipant[]
+
+  @@index([roomId])
+  @@map("room_participants")
+}
+
+model Device {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  roomId         String?    @map("room_id") @db.Uuid
+  kind           DeviceKind
+  label          String
+  userAgent      String?    @map("user_agent")
+  lastSeenAt     DateTime   @default(now()) @map("last_seen_at")
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  room         Room?        @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([roomId])
+  @@map("devices")
+}
+
+model MusicProvider {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  provider       ProviderKey
+  enabled        Boolean     @default(false)
+  /// Credenciales cifradas (nunca en texto plano). Ver docs/09.
+  credentialsEnc String?     @map("credentials_enc")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider])
+  @@map("music_providers")
+}
+
+model Track {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  provider       ProviderKey
+  externalId     String      @map("external_id")
+  title          String
+  artist         String
+  album          String?
+  durationMs     Int?        @map("duration_ms")
+  coverUrl       String?     @map("cover_url")
+  isKaraoke      Boolean     @default(false) @map("is_karaoke")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lyrics       Lyrics[]
+  queueItems   QueueItem[]
+
+  @@unique([organizationId, provider, externalId])
+  @@index([organizationId, title])
+  @@index([organizationId, artist])
+  @@map("tracks")
+}
+
+model Lyrics {
+  id        String       @id @default(uuid()) @db.Uuid
+  trackId   String       @map("track_id") @db.Uuid
+  format    LyricsFormat
+  content   String
+  source    String
+  offsetMs  Int          @default(0) @map("offset_ms")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@index([trackId])
+  @@map("lyrics")
+}
+
+model QueueItem {
+  id            String          @id @default(uuid()) @db.Uuid
+  roomId        String          @map("room_id") @db.Uuid
+  trackId       String          @map("track_id") @db.Uuid
+  requestedById String?         @map("requested_by_id") @db.Uuid
+  position      Int
+  status        QueueItemStatus @default(pending)
+  version       Int             @default(0)
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  room        Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  track       Track            @relation(fields: [trackId], references: [id])
+  requestedBy RoomParticipant? @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+
+  @@index([roomId, status, position])
+  @@map("queue_items")
+}
+
+model PlaybackSession {
+  id          String        @id @default(uuid()) @db.Uuid
+  roomId      String        @map("room_id") @db.Uuid
+  queueItemId String?       @map("queue_item_id") @db.Uuid
+  state       PlaybackState @default(idle)
+  positionMs  Int           @default(0) @map("position_ms")
+  musicVolume Int           @default(80) @map("music_volume")
+  voiceVolume Int           @default(80) @map("voice_volume")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  startedAt   DateTime      @default(now()) @map("started_at")
+  endedAt     DateTime?     @map("ended_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@map("playback_sessions")
+}
+
+model AudioSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  roomId      String    @map("room_id") @db.Uuid
+  livekitRoom String    @unique @map("livekit_room")
+  startedAt   DateTime  @default(now()) @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+
+  room         Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  participants AudioParticipant[]
+
+  @@index([roomId])
+  @@map("audio_sessions")
+}
+
+model AudioParticipant {
+  id             String          @id @default(uuid()) @db.Uuid
+  audioSessionId String          @map("audio_session_id") @db.Uuid
+  participantId  String?         @map("participant_id") @db.Uuid
+  sourceKind     AudioSourceKind @map("source_kind")
+  label          String
+  gain           Float           @default(1)
+  muted          Boolean         @default(false)
+  joinedAt       DateTime        @default(now()) @map("joined_at")
+  leftAt         DateTime?       @map("left_at")
+
+  audioSession AudioSession     @relation(fields: [audioSessionId], references: [id], onDelete: Cascade)
+  participant  RoomParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+
+  @@index([audioSessionId])
+  @@map("audio_participants")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  action         String
+  entity         String?
+  entityId       String?  @map("entity_id")
+  metadata       Json?
+  ip             String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model Setting {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  scope          String   @default("organization")
+  scopeId        String?  @map("scope_id")
+  key            String
+  value          Json
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, scope, scopeId, key])
+  @@map("settings")
+}

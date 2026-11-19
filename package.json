@@ -1,0 +1,37 @@
+{
+  "name": "karaoke-smart",
+  "private": true,
+  "packageManager": "pnpm@10.34.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "db:migrate": "pnpm --filter @ks/api prisma:migrate",
+    "db:deploy": "pnpm --filter @ks/api prisma:deploy"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "turbo": "^2.3.3",
+    "typescript": "^5.6.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "@nestjs/core",
+      "@swc/core",
+      "bcrypt"
+    ]
+  }
+}

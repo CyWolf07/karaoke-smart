@@ -1,0 +1,15 @@
+# Configuración de DESARROLLO. En producción: claves propias y TURN con TLS habilitado.
+port: 7880
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: false
+redis:
+  address: redis:6379
+keys:
+  devkey: devsecret_change_me_at_least_32_chars_long
+turn:
+  enabled: false
+logging:
+  level: info

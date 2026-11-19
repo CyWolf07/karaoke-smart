@@ -1,0 +1,70 @@
+# Infraestructura de desarrollo de Karaoke Smart.
+# Uso: docker compose up -d   (ver docs/10-DESPLIEGUE.md)
+name: karaoke-smart
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: karaoke
+      POSTGRES_PASSWORD: karaoke
+      POSTGRES_DB: karaoke
+    ports: ['5434:5432']
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U karaoke -d karaoke']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports: ['6380:6379']
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  livekit:
+    image: livekit/livekit-server:v1.8
+    command: ['--config', '/etc/livekit.yaml', '--node-ip', '127.0.0.1']
+    ports:
+      - '7880:7880' # señalización / API
+      - '7881:7881' # WebRTC TCP
+      - '50000-50100:50000-50100/udp' # WebRTC UDP
+    volumes:
+      - ./infra/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    depends_on:
+      redis: { condition: service_healthy }
+
+  # Perfil "app": API y worker en contenedores (docker compose --profile app up).
+  # En desarrollo normalmente se ejecutan con `pnpm dev`.
+  api:
+    profiles: ['app']
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    env_file: [apps/api/.env]
+    environment:
+      DATABASE_URL: postgresql://karaoke:karaoke@postgres:5432/karaoke
+      REDIS_URL: redis://redis:6379
+      LIVEKIT_URL: ws://livekit:7880
+    ports: ['3000:3000']
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    profiles: ['app']
+    build: { context: ., dockerfile: apps/worker/Dockerfile }
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  redisdata:

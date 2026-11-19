@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Karaoke Smart",
+    "slug": "karaoke-smart",
+    "scheme": "karaokesmart",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a0a0b",
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "android": {
+      "package": "com.karaokesmart.app",
+      "permissions": ["RECORD_AUDIO"]
+    },
+    "extra": {
+      "apiUrl": "http://10.0.2.2:3000",
+      "eas": {
+        "projectId": "03429fd8-8fe1-4d80-a414-fffe53b9b1be"
+      }
+    }
+  }
+}
