@@ -8,8 +8,8 @@
 - **Tiempo real:** `@ks/realtime-client` (Socket.IO tipado, con reconexión automática).
 - **PWA:** `vite-plugin-pwa` (instalable cuando el navegador lo permite).
 
-Rutas actuales: `/login`, `/register` y `/` (panel con el estado del sistema).
-Rutas previstas: `/screen/:roomId` (pantalla TV) y `/join/:token` (participante).
+Rutas (Fase 1): `/` (elegir rol del dispositivo), `/join` (participante, sin cuenta: apodo guardado en el dispositivo), `/screen` (pantalla TV con reloj sincronizado y pantalla completa; requiere sesión), `/admin` y `/admin/organizacion` (panel con barra lateral en escritorio y navegación inferior en celular), `/login`, `/register`.
+Previstas: `/screen/:roomId` y `/join/:token` con el QR (Fase 2). Las secciones de fases futuras no aparecen en la navegación.
 
 ### Sesión
 

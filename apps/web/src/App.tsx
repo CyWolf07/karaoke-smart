@@ -1,8 +1,13 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { AdminLayout } from '@/layouts/AdminLayout';
 import { api } from '@/lib/api';
 import { DashboardPage } from '@/pages/Dashboard';
 import { AuthPage } from '@/pages/Auth';
+import { HomePage } from '@/pages/Home';
+import { JoinPage } from '@/pages/Join';
+import { OrganizationPage } from '@/pages/Organization';
+import { ScreenPage } from '@/pages/Screen';
 import { getStoredRefreshToken, useAuth } from '@/stores/auth';
 
 /** Restaura la sesión con el refresh token y lo renueva antes de que caduque el access token. */
@@ -49,14 +54,27 @@ export function App() {
     <Routes>
       <Route path="/login" element={<AuthPage mode="login" />} />
       <Route path="/register" element={<AuthPage mode="register" />} />
+      <Route path="/" element={<HomePage />} />
+      <Route path="/join" element={<JoinPage />} />
       <Route
-        path="/"
+        path="/screen"
         element={
           <RequireAuth>
-            <DashboardPage />
+            <ScreenPage />
           </RequireAuth>
         }
       />
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth>
+            <AdminLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<DashboardPage />} />
+        <Route path="organizacion" element={<OrganizationPage />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

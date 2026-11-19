@@ -27,7 +27,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     onSuccess: setSession,
   });
 
-  if (accessToken) return <Navigate to="/" replace />;
+  if (accessToken) return <Navigate to="/admin" replace />;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();

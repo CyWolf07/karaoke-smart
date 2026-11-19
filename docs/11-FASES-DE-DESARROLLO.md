@@ -5,7 +5,7 @@ Una fase se cierra solo cuando sus pruebas de aceptación pasan **con resultados
 | Fase | Contenido                                                                                   | Estado |
 | ---- | ------------------------------------------------------------------------------------------- | ------ |
 | 0    | Monorepo, Docker, Prisma (16 tablas), auth, Swagger, logs, salud, Socket.IO autenticado, CI | ✅     |
-| 1    | Diseño y navegación: pantalla principal, panel admin, app participante (responsive)         | ⏳     |
+| 1    | Diseño y navegación: pantalla principal, panel admin, app participante (responsive)         | 🟡 web |
 | 2    | Salas, QR con expiración, invitados, presencia, reconexión, modos local y remoto            | ⏳     |
 | 3    | Reproductor central, `MusicProvider`, YouTube, Spotify, local                               | ⏳     |
 | 4    | Letras LRC, sincronización con el reloj del servidor, pantalla completa                     | ⏳     |

@@ -1,4 +1,10 @@
-import type { ApiError, AuthResponse, HealthResponse, UserDto } from '@ks/shared-types';
+import type {
+  ApiError,
+  AuthResponse,
+  HealthResponse,
+  OrganizationDto,
+  UserDto,
+} from '@ks/shared-types';
 
 export class ApiClientError extends Error {
   constructor(public readonly payload: ApiError) {
@@ -53,6 +59,9 @@ export function createApiClient(opts: ApiClientOptions) {
         request<AuthResponse>('POST', '/auth/refresh', { refreshToken }),
       logout: (refreshToken: string) => request<void>('POST', '/auth/logout', { refreshToken }),
       me: () => request<UserDto>('GET', '/auth/me'),
+    },
+    organizations: {
+      list: () => request<OrganizationDto[]>('GET', '/organizations'),
     },
   };
 }
