@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { Building2, LayoutDashboard, LogOut, Mic, Tv } from 'lucide-react';
+import { Building2, DoorOpen, LayoutDashboard, LogOut, Mic, Tv } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,7 @@ import { getStoredRefreshToken, useAuth } from '@/stores/auth';
 /** Solo se listan secciones que ya funcionan; las de fases futuras no se muestran. */
 const NAV = [
   { to: '/admin', end: true, label: 'Inicio', icon: LayoutDashboard },
+  { to: '/admin/salas', end: false, label: 'Salas', icon: DoorOpen },
   { to: '/admin/organizacion', end: false, label: 'Organización', icon: Building2 },
 ] as const;
 

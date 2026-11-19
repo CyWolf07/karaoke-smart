@@ -10,7 +10,7 @@ import { validateEnv } from './config/env';
 import { PrismaModule } from './database/prisma.service';
 import { HealthModule } from './health/health.controller';
 import { OrganizationsModule } from './organizations/organizations.module';
-import { RealtimeModule } from './realtime/realtime.gateway';
+import { RoomsModule } from './rooms/rooms.module';
 import { RedisModule } from './redis/redis.module';
 import { UsersModule } from './users/users.module';
 
@@ -40,7 +40,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     OrganizationsModule,
-    RealtimeModule,
+    RoomsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

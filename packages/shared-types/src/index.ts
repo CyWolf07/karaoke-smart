@@ -62,6 +62,24 @@ export interface PresenceParticipant {
   online: boolean;
 }
 
+export interface RoomDto {
+  id: string;
+  name: string;
+  status: RoomStatus;
+  createdAt: string;
+  participantCount: number;
+  /** Solo para miembros de la organización; null si caducó o la sala está cerrada. */
+  joinCode: string | null;
+  joinCodeExpiresAt: string | null;
+}
+
+export interface GuestSession {
+  /** Token de invitado (JWT, válido mientras dure el código de la sala). */
+  guestToken: string;
+  room: { id: string; name: string };
+  participant: { id: string; nickname: string };
+}
+
 /** Eventos tipados de Socket.IO. Servidor -> cliente. */
 export interface ServerToClientEvents {
   'presence:update': (p: { roomId: string; participants: PresenceParticipant[] }) => void;
@@ -73,14 +91,20 @@ export interface ServerToClientEvents {
     serverTime: number;
     queueItemId: string | null;
   }) => void;
+  'room:closed': (p: { roomId: string }) => void;
   error: (e: ApiError) => void;
 }
 
 /**
  * Cliente -> servidor.
  * 'clock:sync' devuelve la hora del servidor para estimar el desfase del reloj del cliente
- * (base de la sincronización de reproducción y letras). Los eventos de sala llegan en la Fase 2.
+ * (base de la sincronización de reproducción y letras).
  */
 export interface ClientToServerEvents {
   'clock:sync': (ack: (r: { serverTime: number }) => void) => void;
+  /** Suscribe el socket a la sala. Admins: deben ser miembros de la organización. Invitados: solo su sala. */
+  'room:join': (
+    p: { roomId: string },
+    ack: (r: { ok: true } | { ok: false; message: string }) => void,
+  ) => void;
 }

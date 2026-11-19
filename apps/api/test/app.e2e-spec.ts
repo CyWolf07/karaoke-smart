@@ -154,4 +154,103 @@ describe('API (integración)', () => {
     expect(Math.abs(r.serverTime - Date.now())).toBeLessThan(2000);
     sock.close();
   });
+
+  describe('Salas e invitados (Fase 2)', () => {
+    let orgId = '';
+    let roomId = '';
+    let code = '';
+    let guestToken = '';
+
+    beforeAll(async () => {
+      const login = await request(app.getHttpServer())
+        .post('/v1/auth/login')
+        .send({ email, password })
+        .expect(200);
+      accessToken = login.body.accessToken;
+      orgId = login.body.organizations[0].id;
+    });
+
+    it('crea una sala con código de 6 caracteres', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/v1/organizations/${orgId}/rooms`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Sala Test' })
+        .expect(201);
+      roomId = res.body.id;
+      code = res.body.joinCode;
+      expect(code).toMatch(/^[A-Z2-9]{6}$/);
+      expect(res.body.status).toBe('open');
+    });
+
+    it('un invitado entra con el código (en minúsculas también) y recibe token', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/v1/rooms/join')
+        .send({ code: code.toLowerCase(), nickname: '  Luis ' })
+        .expect(200);
+      guestToken = res.body.guestToken;
+      expect(res.body.room.id).toBe(roomId);
+      expect(res.body.participant.nickname).toBe('Luis');
+    });
+
+    it('código incorrecto devuelve 404', async () => {
+      await request(app.getHttpServer())
+        .post('/v1/rooms/join')
+        .send({ code: 'ZZZZZZ', nickname: 'X' })
+        .expect(404);
+    });
+
+    it('el token de invitado no sirve para rutas de administración', async () => {
+      await request(app.getHttpServer())
+        .get(`/v1/rooms/${roomId}`)
+        .set('Authorization', `Bearer ${guestToken}`)
+        .expect(401);
+    });
+
+    it('presencia en tiempo real: la pantalla ve al invitado conectado', async () => {
+      const { port } = app.getHttpServer().address() as AddressInfo;
+      const url = `http://localhost:${port}/realtime`;
+      const screen = io(url, { transports: ['websocket'], auth: { token: accessToken } });
+      await new Promise<void>((r) => screen.on('connect', () => r()));
+      expect(await screen.timeout(3000).emitWithAck('room:join', { roomId })).toEqual({ ok: true });
+
+      const seen = new Promise<boolean>((resolve) =>
+        screen.on('presence:update', (p) => {
+          const luis = p.participants.find((x: { nickname: string }) => x.nickname === 'Luis');
+          if (luis?.online) resolve(true);
+        }),
+      );
+      const guest = io(url, { transports: ['websocket'], auth: { token: guestToken } });
+      await new Promise<void>((r) => guest.on('connect', () => r()));
+      expect(await guest.timeout(3000).emitWithAck('room:join', { roomId })).toEqual({ ok: true });
+      expect(await seen).toBe(true);
+
+      // Un invitado no puede suscribirse a otra sala.
+      const other = await guest
+        .timeout(3000)
+        .emitWithAck('room:join', { roomId: '00000000-0000-0000-0000-000000000000' });
+      expect(other.ok).toBe(false);
+      guest.close();
+      screen.close();
+    });
+
+    it('regenerar el código invalida el anterior; cerrar la sala expulsa al invitado', async () => {
+      const r = await request(app.getHttpServer())
+        .post(`/v1/rooms/${roomId}/code`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(r.body.joinCode).not.toBe(code);
+      await request(app.getHttpServer())
+        .post('/v1/rooms/join')
+        .send({ code, nickname: 'Tarde' })
+        .expect(404);
+      await request(app.getHttpServer())
+        .post(`/v1/rooms/${roomId}/close`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post('/v1/rooms/leave')
+        .set('Authorization', `Bearer ${guestToken}`)
+        .expect(401);
+    });
+  });
 });

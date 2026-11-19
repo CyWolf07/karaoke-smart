@@ -27,4 +27,19 @@ export type RefreshInput = z.infer<typeof refreshSchema>;
 
 export const nicknameSchema = z.string().trim().min(1).max(30);
 
+/** Alfabeto de códigos de sala: sin caracteres ambiguos (0/O, 1/I/L). */
+export const JOIN_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export const JOIN_CODE_LENGTH = 6;
+export const joinCodeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(new RegExp(`^[${JOIN_CODE_ALPHABET}]{${JOIN_CODE_LENGTH}}$`), 'Código inválido');
+
+export const createRoomSchema = z.object({ name: z.string().trim().min(2).max(60) });
+export type CreateRoomInput = z.infer<typeof createRoomSchema>;
+
+export const joinRoomSchema = z.object({ code: joinCodeSchema, nickname: nicknameSchema });
+export type JoinRoomInput = z.infer<typeof joinRoomSchema>;
+
 export { z };

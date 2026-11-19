@@ -7,6 +7,7 @@ import { AuthPage } from '@/pages/Auth';
 import { HomePage } from '@/pages/Home';
 import { JoinPage } from '@/pages/Join';
 import { OrganizationPage } from '@/pages/Organization';
+import { RoomsPage } from '@/pages/Rooms';
 import { ScreenPage } from '@/pages/Screen';
 import { getStoredRefreshToken, useAuth } from '@/stores/auth';
 
@@ -70,6 +71,14 @@ export function App() {
       <Route path="/inicio" element={<HomePage />} />
       <Route path="/join" element={<JoinPage />} />
       <Route
+        path="/screen/:roomId"
+        element={
+          <RequireAuth>
+            <ScreenPage />
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/screen"
         element={
           <RequireAuth>
@@ -86,6 +95,7 @@ export function App() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="salas" element={<RoomsPage />} />
         <Route path="organizacion" element={<OrganizationPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

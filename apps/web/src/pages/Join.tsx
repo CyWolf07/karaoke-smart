@@ -1,89 +1,183 @@
-import { useQuery } from '@tanstack/react-query';
-import { Check, Mic, QrCode } from 'lucide-react';
+import type { GuestSession } from '@ks/shared-types';
+import { joinCodeSchema } from '@ks/validation';
+import { useMutation } from '@tanstack/react-query';
+import { LogOut, Mic } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusDot } from '@/components/StatusDot';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { api } from '@/lib/api';
+import { useRoomPresence } from '@/hooks/useRoomPresence';
+import { api, errorMessage } from '@/lib/api';
+import { clearGuest, loadGuest, saveGuest } from '@/lib/guest';
 import { loadNickname, saveNickname, validateNickname } from '@/lib/nickname';
 
-/**
- * App del participante (celular, sin cuenta). En la Fase 1 guarda el apodo en el
- * dispositivo y muestra si el servidor responde. Entrar a una sala requiere el QR (Fase 2).
- */
-export function JoinPage() {
-  const health = useQuery({ queryKey: ['health'], queryFn: api.health, refetchInterval: 15_000 });
+function Header() {
+  return (
+    <header className="mb-10 flex items-center gap-2 font-bold">
+      <Mic className="text-primary" size={20} /> Karaoke Smart
+    </header>
+  );
+}
+
+/** Dentro de la sala: estado de conexión y quién más está (en vivo). */
+function GuestRoom({ session, onLeave }: { session: GuestSession; onLeave: () => void }) {
+  const presence = useRoomPresence(session.room.id, () => session.guestToken);
+  const leave = useMutation({
+    mutationFn: () => api.rooms.leave(session.guestToken).catch(() => undefined),
+    onSettled: onLeave,
+  });
+
+  if (presence.closed || presence.error)
+    return (
+      <div className="text-center">
+        <p className="mb-2 text-2xl font-bold">
+          {presence.closed ? 'La sala se cerró' : 'Ya no estás en esta sala'}
+        </p>
+        <p className="mb-6 text-muted">
+          {presence.closed ? 'Gracias por cantar.' : presence.error}
+        </p>
+        <Button size="lg" className="w-full" onClick={onLeave}>
+          Entrar a otra sala
+        </Button>
+      </div>
+    );
+
+  return (
+    <>
+      <p className="text-sm text-muted">Estás en</p>
+      <h1 className="mb-1 text-3xl font-bold">{session.room.name}</h1>
+      <p className="mb-8 text-muted">
+        como <span className="font-semibold text-foreground">{session.participant.nickname}</span>
+      </p>
+
+      <section className="mb-8 rounded-lg bg-surface-raised p-5">
+        <h2 className="mb-3 font-semibold">En la sala</h2>
+        <ul className="space-y-2">
+          {presence.participants.map((p) => (
+            <li key={p.id} className="flex items-center justify-between">
+              <span className={p.online ? '' : 'text-muted'}>
+                {p.nickname}
+                {p.id === session.participant.id && ' (tú)'}
+              </span>
+              <StatusDot up={p.online} label={p.online ? 'En línea' : 'Desconectado'} />
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <p className="mb-6 text-sm text-muted">
+        Pedir canciones llega en la siguiente fase, junto con YouTube y Spotify.
+      </p>
+      <Button
+        variant="secondary"
+        size="lg"
+        className="mt-auto w-full"
+        onClick={() => leave.mutate()}
+        disabled={leave.isPending}
+      >
+        <LogOut size={18} /> Salir de la sala
+      </Button>
+    </>
+  );
+}
+
+/** Entrar con el código (escrito o leído del QR, que llega en ?code=). */
+function JoinForm({ onJoined }: { onJoined: (s: GuestSession) => void }) {
+  const [params] = useSearchParams();
+  const [code, setCode] = useState((params.get('code') ?? '').toUpperCase());
   const [nickname, setNickname] = useState(loadNickname);
-  const [saved, setSaved] = useState(Boolean(loadNickname()));
   const [error, setError] = useState<string | null>(null);
+  const join = useMutation({
+    mutationFn: (v: { code: string; nickname: string }) => api.rooms.join(v.code, v.nickname),
+    onSuccess: (s) => {
+      saveNickname(s.participant.nickname);
+      saveGuest(s);
+      onJoined(s);
+    },
+  });
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    const r = validateNickname(nickname);
-    if (!r.ok) return setError(r.error);
-    saveNickname(r.value);
-    setNickname(r.value);
+    const c = joinCodeSchema.safeParse(code);
+    if (!c.success) return setError('El código tiene 6 letras o números');
+    const n = validateNickname(nickname);
+    if (!n.ok) return setError(n.error);
     setError(null);
-    setSaved(true);
+    join.mutate({ code: c.data, nickname: n.value });
   }
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-md flex-col px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1.5rem+env(safe-area-inset-top,0px))]">
-      <header className="mb-10 flex items-center justify-between">
-        <span className="flex items-center gap-2 font-bold">
-          <Mic className="text-primary" size={20} /> Karaoke Smart
-        </span>
-        <StatusDot
-          up={health.isError ? false : health.data ? health.data.status === 'ok' : null}
-          label={
-            health.isError ? 'Sin servidor' : health.data ? 'Servidor en línea' : 'Comprobando'
-          }
-        />
-      </header>
-
-      <h1 className="mb-2 text-3xl font-bold">¿Cómo te llamamos?</h1>
-      <p className="mb-6 text-muted">Tu apodo aparecerá en la cola cuando pidas canciones.</p>
-
+    <>
+      <h1 className="mb-2 text-3xl font-bold">Entra a la sala</h1>
+      <p className="mb-6 text-muted">Escanea el QR de la pantalla o escribe su código.</p>
       <form onSubmit={submit} className="space-y-3">
         <Input
-          value={nickname}
-          onChange={(e) => {
-            setNickname(e.target.value);
-            setSaved(false);
-          }}
-          placeholder="Tu apodo"
-          autoComplete="nickname"
-          enterKeyHint="done"
-          maxLength={30}
-          aria-invalid={Boolean(error)}
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s/g, ''))}
+          placeholder="Código (6 caracteres)"
+          maxLength={6}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          className="text-center font-mono text-2xl tracking-[0.3em]"
+          aria-label="Código de la sala"
         />
-        {error && <p className="text-sm text-danger">{error}</p>}
-        <Button type="submit" size="lg" className="w-full" disabled={saved}>
-          {saved ? (
-            <>
-              <Check size={18} /> Guardado en este dispositivo
-            </>
-          ) : (
-            'Guardar apodo'
-          )}
+        <Input
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          placeholder="Tu apodo"
+          maxLength={30}
+          autoComplete="nickname"
+          enterKeyHint="go"
+          aria-label="Tu apodo"
+        />
+        {(error || join.isError) && (
+          <p className="text-sm text-danger">{error ?? errorMessage(join.error)}</p>
+        )}
+        <Button type="submit" size="lg" className="w-full" disabled={join.isPending}>
+          {join.isPending ? 'Entrando…' : 'Entrar'}
         </Button>
       </form>
-
-      <div className="mt-10 flex items-start gap-4 rounded-lg bg-surface-raised p-5">
-        <QrCode className="mt-1 shrink-0 text-primary" />
-        <p className="text-sm text-muted">
-          Para entrar a una sala escanea el QR de la pantalla principal. Las salas y el QR se
-          habilitan en la Fase 2.
-        </p>
-      </div>
-
       <p className="mt-auto pt-10 text-center text-sm text-muted">
         ¿Eres el anfitrión?{' '}
         <Link to="/login" className="text-primary hover:underline">
           Inicia sesión
         </Link>
       </p>
+    </>
+  );
+}
+
+/** App del participante (celular, sin cuenta). */
+export function JoinPage() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  // Un QR nuevo (?code=) tiene prioridad sobre una sesión guardada de otra sala.
+  const [session, setSession] = useState<GuestSession | null>(() =>
+    params.get('code') ? null : loadGuest(),
+  );
+
+  return (
+    <div className="mx-auto flex min-h-svh max-w-md flex-col px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1.5rem+env(safe-area-inset-top,0px))]">
+      <Header />
+      {session ? (
+        <GuestRoom
+          session={session}
+          onLeave={() => {
+            clearGuest();
+            setSession(null);
+          }}
+        />
+      ) : (
+        <JoinForm
+          onJoined={(s) => {
+            setSession(s);
+            navigate('/join', { replace: true });
+          }}
+        />
+      )}
     </div>
   );
 }

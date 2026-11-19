@@ -1,50 +1,116 @@
-import { INestApplicationContext, Logger, Module } from '@nestjs/common';
+import { forwardRef, Inject, INestApplicationContext, Logger } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
-import { OnGatewayConnection, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
+import {
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from '@nestjs/websockets';
 import { createAdapter } from '@socket.io/redis-adapter';
 import type { ClientToServerEvents, ServerToClientEvents } from '@ks/shared-types';
 import Redis from 'ioredis';
-import type { Server, ServerOptions, Socket } from 'socket.io';
+import type { Namespace, Server, ServerOptions, Socket } from 'socket.io';
 import { AuthService, type AccessTokenPayload } from '../auth/auth.service';
+import { RoomsService, type GuestTokenPayload } from '../rooms/rooms.service';
 
+interface SocketData {
+  user?: AccessTokenPayload;
+  guest?: GuestTokenPayload;
+  rooms?: string[];
+}
 type AppSocket = Socket<
   ClientToServerEvents,
   ServerToClientEvents,
   Record<string, never>,
-  { user?: AccessTokenPayload }
+  SocketData
 >;
+const channel = (roomId: string) => `room:${roomId}`;
 
 /**
  * Gateway de tiempo real. Solo eventos de control: el audio va por LiveKit.
- * Toda conexión debe autenticarse en el handshake.
+ * Toda conexión se autentica en el handshake, con token de usuario o de invitado.
  */
 @WebSocketGateway({ namespace: '/realtime' })
-export class RealtimeGateway implements OnGatewayConnection {
+export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(RealtimeGateway.name);
+  @WebSocketServer() private readonly nsp!: Namespace<
+    ClientToServerEvents,
+    ServerToClientEvents,
+    Record<string, never>,
+    SocketData
+  >;
 
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    @Inject(forwardRef(() => RoomsService)) private readonly rooms: RoomsService,
+  ) {}
 
-  handleConnection(client: AppSocket): void {
+  async handleConnection(client: AppSocket): Promise<void> {
     const token = (client.handshake.auth as { token?: string } | undefined)?.token;
     try {
       if (!token) throw new Error('missing token');
-      client.data.user = this.auth.verifyAccessToken(token);
+      try {
+        client.data.user = this.auth.verifyAccessToken(token);
+      } catch {
+        client.data.guest = await this.rooms.verifyGuest(token);
+      }
     } catch {
       client.emit('error', { statusCode: 401, error: 'Unauthorized', message: 'Token inválido' });
       client.disconnect(true);
       return;
     }
-    this.logger.debug(`Conectado ${client.id} (${client.data.user.sub})`);
+    client.data.rooms = [];
+  }
+
+  async handleDisconnect(client: AppSocket): Promise<void> {
+    if (client.data.guest) await this.rooms.touch(client.data.guest.sub);
+    for (const roomId of client.data.rooms ?? []) await this.broadcastPresence(roomId);
   }
 
   @SubscribeMessage('clock:sync')
   clockSync(): { serverTime: number } {
     return { serverTime: Date.now() };
   }
-}
 
-@Module({ providers: [RealtimeGateway] })
-export class RealtimeModule {}
+  @SubscribeMessage('room:join')
+  async roomJoin(
+    @ConnectedSocket() client: AppSocket,
+    @MessageBody() body: { roomId?: string },
+  ): Promise<{ ok: true } | { ok: false; message: string }> {
+    const roomId = String(body?.roomId ?? '');
+    try {
+      if (client.data.guest) {
+        if (client.data.guest.roomId !== roomId) throw new Error('forbidden');
+      } else if (client.data.user) {
+        await this.rooms.roleInRoom(client.data.user.sub, roomId);
+      } else throw new Error('unauthenticated');
+    } catch {
+      return { ok: false, message: 'Sin acceso a esta sala' };
+    }
+    await client.join(channel(roomId));
+    client.data.rooms = [...new Set([...(client.data.rooms ?? []), roomId])];
+    await this.broadcastPresence(roomId);
+    return { ok: true };
+  }
+
+  /** Lista de participantes con su estado en línea (sockets presentes en la sala, en cualquier instancia). */
+  async broadcastPresence(roomId: string): Promise<void> {
+    const sockets = await this.nsp.in(channel(roomId)).fetchSockets();
+    const online = new Set(
+      sockets.map((s) => s.data.guest?.sub).filter((id): id is string => Boolean(id)),
+    );
+    const participants = await this.rooms.participants(roomId, online);
+    this.nsp.to(channel(roomId)).emit('presence:update', { roomId, participants });
+  }
+
+  async roomClosed(roomId: string): Promise<void> {
+    this.nsp.to(channel(roomId)).emit('room:closed', { roomId });
+    this.nsp.in(channel(roomId)).disconnectSockets(false);
+  }
+}
 
 /**
  * Adaptador Socket.IO respaldado en Redis: permite varias instancias de la API

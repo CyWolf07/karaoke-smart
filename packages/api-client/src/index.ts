@@ -1,8 +1,10 @@
 import type {
   ApiError,
   AuthResponse,
+  GuestSession,
   HealthResponse,
   OrganizationDto,
+  RoomDto,
   UserDto,
 } from '@ks/shared-types';
 
@@ -22,9 +24,14 @@ export interface ApiClientOptions {
 export function createApiClient(opts: ApiClientOptions) {
   const doFetch = opts.fetchImpl ?? fetch;
 
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  async function request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    tokenOverride?: string,
+  ): Promise<T> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    const token = opts.getAccessToken?.();
+    const token = tokenOverride ?? opts.getAccessToken?.();
     if (token) headers.Authorization = `Bearer ${token}`;
     const res = await doFetch(`${opts.baseUrl}/v1${path}`, {
       method,
@@ -62,6 +69,18 @@ export function createApiClient(opts: ApiClientOptions) {
     },
     organizations: {
       list: () => request<OrganizationDto[]>('GET', '/organizations'),
+    },
+    rooms: {
+      list: (orgId: string) => request<RoomDto[]>('GET', `/organizations/${orgId}/rooms`),
+      create: (orgId: string, name: string) =>
+        request<RoomDto>('POST', `/organizations/${orgId}/rooms`, { name }),
+      get: (roomId: string) => request<RoomDto>('GET', `/rooms/${roomId}`),
+      regenerateCode: (roomId: string) => request<RoomDto>('POST', `/rooms/${roomId}/code`),
+      close: (roomId: string) => request<RoomDto>('POST', `/rooms/${roomId}/close`),
+      /** Público: entrar como invitado con el código de la sala. */
+      join: (code: string, nickname: string) =>
+        request<GuestSession>('POST', '/rooms/join', { code, nickname }),
+      leave: (guestToken: string) => request<void>('POST', '/rooms/leave', undefined, guestToken),
     },
   };
 }
