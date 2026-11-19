@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { loginSchema, registerSchema } from '@ks/validation';
 import { Mic } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api, errorMessage } from '@/lib/api';
@@ -18,6 +18,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   });
   const [validation, setValidation] = useState<string | null>(null);
   const isRegister = mode === 'register';
+  const from = (useLocation().state as { from?: string } | null)?.from;
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -27,7 +28,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     onSuccess: setSession,
   });
 
-  if (accessToken) return <Navigate to="/admin" replace />;
+  if (accessToken) return <Navigate to={from ?? '/admin'} replace />;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();

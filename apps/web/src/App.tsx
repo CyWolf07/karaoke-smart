@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AdminLayout } from '@/layouts/AdminLayout';
 import { api } from '@/lib/api';
 import { DashboardPage } from '@/pages/Dashboard';
@@ -43,9 +43,14 @@ function useSessionRestore() {
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { accessToken, restoring } = useAuth();
+  const location = useLocation();
   if (restoring)
     return <div className="grid min-h-screen place-items-center text-muted">Cargando…</div>;
-  return accessToken ? <>{children}</> : <Navigate to="/login" replace />;
+  return accessToken ? (
+    <>{children}</>
+  ) : (
+    <Navigate to="/login" replace state={{ from: location.pathname }} />
+  );
 }
 
 export function App() {
@@ -54,7 +59,15 @@ export function App() {
     <Routes>
       <Route path="/login" element={<AuthPage mode="login" />} />
       <Route path="/register" element={<AuthPage mode="register" />} />
-      <Route path="/" element={<HomePage />} />
+      <Route
+        path="/"
+        element={
+          <RequireAuth>
+            <ScreenPage />
+          </RequireAuth>
+        }
+      />
+      <Route path="/inicio" element={<HomePage />} />
       <Route path="/join" element={<JoinPage />} />
       <Route
         path="/screen"

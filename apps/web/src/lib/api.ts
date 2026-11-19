@@ -1,7 +1,10 @@
 import { ApiClientError, createApiClient } from '@ks/api-client';
 import { useAuth } from '@/stores/auth';
 
-export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+// En producción la web la sirve la propia API: mismo dominio por defecto.
+export const API_URL: string =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.PROD ? window.location.origin : 'http://localhost:3000');
 
 export const api = createApiClient({
   baseUrl: API_URL,
