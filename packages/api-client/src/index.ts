@@ -4,7 +4,9 @@ import type {
   GuestSession,
   HealthResponse,
   OrganizationDto,
+  QueueDto,
   RoomDto,
+  SearchResultDto,
   UserDto,
 } from '@ks/shared-types';
 
@@ -81,6 +83,24 @@ export function createApiClient(opts: ApiClientOptions) {
       join: (code: string, nickname: string) =>
         request<GuestSession>('POST', '/rooms/join', { code, nickname }),
       leave: (guestToken: string) => request<void>('POST', '/rooms/leave', undefined, guestToken),
+    },
+    /** Cola y búsqueda: `token` permite usar el token de invitado en lugar del de sesión. */
+    queue: {
+      get: (roomId: string, token?: string) =>
+        request<QueueDto>('GET', `/rooms/${roomId}/queue`, undefined, token),
+      add: (roomId: string, videoId: string, token?: string) =>
+        request<QueueDto>('POST', `/rooms/${roomId}/queue`, { videoId }, token),
+      remove: (roomId: string, itemId: string, token?: string) =>
+        request<QueueDto>('DELETE', `/rooms/${roomId}/queue/${itemId}`, undefined, token),
+      advance: (roomId: string, fromItemId?: string | null) =>
+        request<QueueDto>('POST', `/rooms/${roomId}/queue/advance`, { fromItemId }),
+      search: (roomId: string, q: string, token?: string) =>
+        request<SearchResultDto[]>(
+          'GET',
+          `/rooms/${roomId}/search?q=${encodeURIComponent(q)}`,
+          undefined,
+          token,
+        ),
     },
   };
 }

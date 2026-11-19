@@ -13,6 +13,8 @@ export function useRoomPresence(roomId: string | undefined, getToken: () => stri
   const [participants, setParticipants] = useState<PresenceParticipant[]>([]);
   const [closed, setClosed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Cambia con cada `queue:update` (y al reconectar) para volver a pedir la cola. */
+  const [queueTick, setQueueTick] = useState(0);
 
   useEffect(() => {
     if (!roomId) return;
@@ -22,12 +24,16 @@ export function useRoomPresence(roomId: string | undefined, getToken: () => stri
       try {
         const r = await socket.timeout(5000).emitWithAck('room:join', { roomId });
         setError(r.ok ? null : r.message);
+        setQueueTick((t) => t + 1);
       } catch {
         setError('El servidor no respondió');
       }
     });
     socket.on('presence:update', (p) => {
       if (p.roomId === roomId) setParticipants(p.participants);
+    });
+    socket.on('queue:update', (p) => {
+      if (p.roomId === roomId) setQueueTick((t) => t + 1);
     });
     socket.on('room:closed', (p) => {
       if (p.roomId === roomId) setClosed(true);
@@ -50,5 +56,5 @@ export function useRoomPresence(roomId: string | undefined, getToken: () => stri
     // getToken se lee en cada (re)conexión, por eso no es dependencia del efecto.
   }, [roomId]);
 
-  return { status, participants, closed, error };
+  return { status, participants, closed, error, queueTick };
 }

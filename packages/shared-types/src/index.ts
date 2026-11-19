@@ -4,7 +4,7 @@ export const ROLES = ['owner', 'admin', 'host', 'participant'] as const;
 export type Role = (typeof ROLES)[number];
 
 export type RoomStatus = 'open' | 'closed';
-export type QueueItemStatus = 'pending' | 'playing' | 'played' | 'skipped';
+export type QueueItemStatus = 'pending' | 'playing' | 'played' | 'skipped' | 'removed';
 export type PlaybackState = 'idle' | 'playing' | 'paused';
 export type ProviderId = 'youtube' | 'spotify' | 'local';
 export type DeviceKind = 'screen' | 'admin' | 'participant';
@@ -78,6 +78,36 @@ export interface GuestSession {
   guestToken: string;
   room: { id: string; name: string };
   participant: { id: string; nickname: string };
+}
+
+export interface TrackDto {
+  provider: ProviderId;
+  externalId: string;
+  title: string;
+  artist: string;
+  coverUrl: string | null;
+}
+
+export interface QueueItemDto {
+  id: string;
+  status: QueueItemStatus;
+  position: number;
+  track: TrackDto;
+  requestedBy: { id: string; nickname: string } | null;
+}
+
+export interface QueueDto {
+  roomId: string;
+  version: number;
+  current: QueueItemDto | null;
+  upcoming: QueueItemDto[];
+}
+
+export interface SearchResultDto {
+  externalId: string;
+  title: string;
+  channel: string;
+  thumbnail: string | null;
 }
 
 /** Eventos tipados de Socket.IO. Servidor -> cliente. */

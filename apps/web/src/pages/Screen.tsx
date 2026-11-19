@@ -1,9 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
-import { Maximize, Mic, QrCode } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Maximize, Mic, Play, QrCode, SkipForward } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
+import { QueueList } from '@/components/QueueList';
 import { StatusDot } from '@/components/StatusDot';
+import { Button } from '@/components/ui/button';
+import { YouTubePlayer } from '@/components/YouTubePlayer';
+import { useQueue } from '@/hooks/useQueue';
 import { useRealtimeStatus, type RtStatus } from '@/hooks/useRealtimeStatus';
 import { useRoomPresence } from '@/hooks/useRoomPresence';
 import { api, errorMessage } from '@/lib/api';
@@ -61,7 +65,56 @@ function ScreenShell({ status, children }: { status: RtStatus; children: ReactNo
   );
 }
 
-/** Pantalla de una sala: QR y código para entrar, y participantes en vivo. */
+function JoinPanel({ code, compact }: { code: string | null | undefined; compact?: boolean }) {
+  const size = compact ? 150 : 280;
+  return (
+    <div
+      className={
+        compact ? 'flex items-center gap-4' : 'flex flex-col items-center gap-6 text-center'
+      }
+    >
+      <div className="shrink-0 rounded-lg bg-white p-3">
+        {code ? (
+          <QRCodeSVG
+            value={joinUrl(window.location.origin, code)}
+            size={size}
+            level="M"
+            aria-label="Código QR para unirse a la sala"
+          />
+        ) : (
+          <div
+            style={{ width: size, height: size }}
+            className="grid place-items-center text-neutral-500"
+          >
+            <QrCode size={48} />
+          </div>
+        )}
+      </div>
+      <div>
+        <p className="text-muted">Escanea o entra en</p>
+        <p className={compact ? 'font-semibold' : 'text-xl font-semibold'}>
+          {window.location.host}/join
+        </p>
+        <p
+          className={
+            compact
+              ? 'mt-1 font-mono text-3xl font-bold tracking-[0.25em] text-primary'
+              : 'mt-3 font-mono text-5xl font-bold tracking-[0.3em] text-primary sm:text-6xl'
+          }
+        >
+          {code ?? '······'}
+        </p>
+        {!code && (
+          <p className="mt-2 text-sm text-warning">
+            El código caducó: genera uno nuevo desde el panel.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Pantalla de una sala: QR, participantes, cola y reproductor de YouTube. */
 function RoomScreen({ roomId }: { roomId: string }) {
   const room = useQuery({
     queryKey: ['room', roomId],
@@ -69,17 +122,44 @@ function RoomScreen({ roomId }: { roomId: string }) {
     refetchInterval: 30_000,
   });
   const presence = useRoomPresence(roomId, () => useAuth.getState().accessToken);
+  const queue = useQueue(roomId, presence.queueTick);
+  const qc = useQueryClient();
+  // Los navegadores solo dejan sonar audio tras un gesto del usuario: un clic inicia el karaoke.
+  const [started, setStarted] = useState(false);
+  const [playerError, setPlayerError] = useState<string | null>(null);
+  const advance = useMutation({
+    mutationFn: (fromItemId: string | null) => api.queue.advance(roomId, fromItemId),
+    onSuccess: (q) => qc.setQueryData(['queue', roomId], q),
+  });
+  const remove = useMutation({
+    mutationFn: (itemId: string) => api.queue.remove(roomId, itemId),
+    onSuccess: (q) => qc.setQueryData(['queue', roomId], q),
+  });
+
+  const current = queue.data?.current ?? null;
+  const hasNext = (queue.data?.upcoming.length ?? 0) > 0;
+  const { mutate: advanceTo, isPending: advancing } = advance;
+  // Sin canción sonando y con cola: arranca la siguiente automáticamente.
+  useEffect(() => {
+    if (started && queue.data && !current && hasNext && !advancing) advanceTo(null);
+  }, [started, queue.data, current, hasNext, advancing, advanceTo]);
+
   const online = presence.participants.filter((p) => p.online);
   const code = room.data?.joinCode;
   const closed = presence.closed || room.data?.status === 'closed';
 
-  return (
-    <ScreenShell status={presence.status}>
-      {room.isError || presence.error ? (
+  if (room.isError || presence.error)
+    return (
+      <ScreenShell status={presence.status}>
         <main className="grid flex-1 place-items-center text-center text-danger">
           {room.isError ? errorMessage(room.error) : presence.error}
         </main>
-      ) : closed ? (
+      </ScreenShell>
+    );
+
+  if (closed)
+    return (
+      <ScreenShell status={presence.status}>
         <main className="grid flex-1 place-items-center text-center">
           <div>
             <p className="text-3xl font-bold">La sala se cerró</p>
@@ -88,40 +168,66 @@ function RoomScreen({ roomId }: { roomId: string }) {
             </Link>
           </div>
         </main>
-      ) : (
-        <main className="grid flex-1 items-center gap-10 py-8 lg:grid-cols-[auto_1fr]">
-          <section className="flex flex-col items-center gap-6 text-center">
-            <h1 className="text-3xl font-bold sm:text-4xl">{room.data?.name ?? '…'}</h1>
-            <div className="rounded-lg bg-white p-5">
-              {code ? (
-                <QRCodeSVG
-                  value={joinUrl(window.location.origin, code)}
-                  size={280}
-                  level="M"
-                  aria-label="Código QR para unirse a la sala"
-                />
-              ) : (
-                <div className="grid h-[280px] w-[280px] place-items-center text-neutral-500">
-                  <QrCode size={56} />
-                </div>
-              )}
-            </div>
-            <div>
-              <p className="text-muted">Escanea el QR o entra en</p>
-              <p className="text-xl font-semibold">{window.location.host}/join</p>
-              <p className="mt-3 font-mono text-5xl font-bold tracking-[0.3em] text-primary sm:text-6xl">
-                {code ?? '······'}
-              </p>
-              {!code && room.data && (
-                <p className="mt-2 text-sm text-warning">
-                  El código caducó: genera uno nuevo desde el panel.
-                </p>
-              )}
-            </div>
-          </section>
+      </ScreenShell>
+    );
 
-          <section className="self-stretch rounded-lg bg-surface p-6">
-            <h2 className="mb-4 text-xl font-semibold">
+  return (
+    <ScreenShell status={presence.status}>
+      <main className="grid flex-1 gap-8 py-6 lg:grid-cols-[1fr_380px]">
+        <section className="flex min-w-0 flex-col gap-4">
+          <h1 className="text-3xl font-bold">{room.data?.name ?? '…'}</h1>
+          {!started ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-8 rounded-lg bg-surface p-8">
+              <JoinPanel code={code} />
+              <Button size="lg" onClick={() => setStarted(true)}>
+                <Play size={20} /> Iniciar karaoke
+              </Button>
+            </div>
+          ) : current ? (
+            <>
+              <YouTubePlayer
+                videoId={current.track.externalId}
+                onEnded={() => advance.mutate(current.id)}
+                onError={(m) => {
+                  setPlayerError(`${m}. Pasando a la siguiente…`);
+                  window.setTimeout(() => {
+                    setPlayerError(null);
+                    advance.mutate(current.id);
+                  }, 4000);
+                }}
+              />
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="truncate text-2xl font-semibold">{current.track.title}</p>
+                  <p className="text-muted">
+                    {current.requestedBy
+                      ? `Canta ${current.requestedBy.nickname}`
+                      : 'Pedida por el anfitrión'}
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => advance.mutate(current.id)}
+                  disabled={advance.isPending}
+                >
+                  <SkipForward size={18} /> Siguiente
+                </Button>
+              </div>
+              {playerError && <p className="text-warning">{playerError}</p>}
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 rounded-lg bg-surface p-8 text-center">
+              <JoinPanel code={code} />
+              <p className="text-xl text-muted">Pide la primera canción desde tu celular.</p>
+            </div>
+          )}
+          {advance.isError && <p className="text-danger">{errorMessage(advance.error)}</p>}
+        </section>
+
+        <aside className="flex flex-col gap-6 rounded-lg bg-surface p-5">
+          {started && current && <JoinPanel code={code} compact />}
+          <section>
+            <h2 className="mb-3 text-lg font-semibold">
               En la sala{' '}
               <span className="text-muted">
                 ({online.length} en línea de {presence.participants.length})
@@ -130,11 +236,11 @@ function RoomScreen({ roomId }: { roomId: string }) {
             {presence.participants.length === 0 ? (
               <p className="text-muted">Esperando a que entre el primer invitado…</p>
             ) : (
-              <ul className="flex flex-wrap gap-3">
+              <ul className="flex flex-wrap gap-2">
                 {presence.participants.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center gap-2 rounded-full bg-surface-raised px-4 py-2 text-lg"
+                    className="flex items-center gap-2 rounded-full bg-surface-raised px-3 py-1.5"
                   >
                     <span
                       className={
@@ -149,8 +255,18 @@ function RoomScreen({ roomId }: { roomId: string }) {
               </ul>
             )}
           </section>
-        </main>
-      )}
+          <section>
+            <QueueList
+              queue={queue.data}
+              canRemove={() => true}
+              onRemove={(i) => remove.mutate(i.id)}
+            />
+            {remove.isError && (
+              <p className="mt-2 text-sm text-danger">{errorMessage(remove.error)}</p>
+            )}
+          </section>
+        </aside>
+      </main>
     </ScreenShell>
   );
 }

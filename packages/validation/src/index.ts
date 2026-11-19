@@ -42,4 +42,21 @@ export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 export const joinRoomSchema = z.object({ code: joinCodeSchema, nickname: nicknameSchema });
 export type JoinRoomInput = z.infer<typeof joinRoomSchema>;
 
+/** ID de vídeo de YouTube (11 caracteres). */
+export const youtubeIdSchema = z.string().regex(/^[A-Za-z0-9_-]{11}$/, 'Vídeo de YouTube inválido');
+export const addToQueueSchema = z.object({ videoId: youtubeIdSchema });
+export type AddToQueueInput = z.infer<typeof addToQueueSchema>;
+export const advanceQueueSchema = z.object({ fromItemId: z.string().uuid().nullable().optional() });
+export type AdvanceQueueInput = z.infer<typeof advanceQueueSchema>;
+
+/** Extrae el ID de un enlace de YouTube (watch, youtu.be, shorts, embed, music) o de un ID suelto. */
+export function parseYouTubeId(input: string): string | null {
+  const s = input.trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+  const m = s.match(
+    /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/|music\.youtube\.com\/watch\?(?:.*&)?v=)([A-Za-z0-9_-]{11})/,
+  );
+  return m ? m[1] : null;
+}
+
 export { z };

@@ -114,6 +114,11 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayDisconnect {
     this.nsp.to(channel(roomId)).emit('presence:update', { roomId, participants });
   }
 
+  /** Aviso ligero: los clientes vuelven a pedir la cola por REST. */
+  queueUpdated(roomId: string, version: number): void {
+    this.nsp.to(channel(roomId)).emit('queue:update', { roomId, version });
+  }
+
   async roomClosed(roomId: string): Promise<void> {
     this.nsp.to(channel(roomId)).emit('room:closed', { roomId });
     this.nsp.in(channel(roomId)).disconnectSockets(false);

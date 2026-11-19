@@ -13,6 +13,8 @@ export const envSchema = z.object({
   LIVEKIT_URL: z.string().default('ws://localhost:7880'),
   LIVEKIT_API_KEY: z.string().optional(),
   LIVEKIT_API_SECRET: z.string().optional(),
+  /** Opcional: activa la búsqueda. Sin ella, se piden canciones pegando el enlace de YouTube. */
+  YOUTUBE_API_KEY: z.string().optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 

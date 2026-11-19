@@ -19,7 +19,19 @@ export async function configureApp(app: INestApplication): Promise<void> {
     .map((s) => s.trim());
 
   app.useLogger(app.get(Logger));
-  app.use(helmet());
+  // CSP: la web incrusta el reproductor oficial de YouTube (script, iframe y miniaturas).
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          'script-src': ["'self'", 'https://www.youtube.com', 'https://s.ytimg.com'],
+          'frame-src': ['https://www.youtube.com', 'https://www.youtube-nocookie.com'],
+          'img-src': ["'self'", 'data:', 'https://i.ytimg.com', 'https://*.ytimg.com'],
+        },
+      },
+    }),
+  );
   app.enableCors({ origin: origins, credentials: true });
   app.enableVersioning({ type: VersioningType.URI });
   app.enableShutdownHooks();

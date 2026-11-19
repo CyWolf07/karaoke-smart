@@ -1,10 +1,13 @@
 import type { GuestSession } from '@ks/shared-types';
 import { joinCodeSchema } from '@ks/validation';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { LogOut, Mic } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { QueueList } from '@/components/QueueList';
+import { SongPicker } from '@/components/SongPicker';
 import { StatusDot } from '@/components/StatusDot';
+import { useQueue } from '@/hooks/useQueue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRoomPresence } from '@/hooks/useRoomPresence';
@@ -23,6 +26,12 @@ function Header() {
 /** Dentro de la sala: estado de conexión y quién más está (en vivo). */
 function GuestRoom({ session, onLeave }: { session: GuestSession; onLeave: () => void }) {
   const presence = useRoomPresence(session.room.id, () => session.guestToken);
+  const queue = useQueue(session.room.id, presence.queueTick, session.guestToken);
+  const qc = useQueryClient();
+  const remove = useMutation({
+    mutationFn: (itemId: string) => api.queue.remove(session.room.id, itemId, session.guestToken),
+    onSuccess: (q) => qc.setQueryData(['queue', session.room.id], q),
+  });
   const leave = useMutation({
     mutationFn: () => api.rooms.leave(session.guestToken).catch(() => undefined),
     onSettled: onLeave,
@@ -51,6 +60,20 @@ function GuestRoom({ session, onLeave }: { session: GuestSession; onLeave: () =>
         como <span className="font-semibold text-foreground">{session.participant.nickname}</span>
       </p>
 
+      <section className="mb-6 rounded-lg bg-surface-raised p-5">
+        <h2 className="mb-3 font-semibold">Pide una canción</h2>
+        <SongPicker roomId={session.room.id} token={session.guestToken} />
+      </section>
+
+      <section className="mb-6 rounded-lg bg-surface-raised p-5">
+        <QueueList
+          queue={queue.data}
+          canRemove={(i) => i.status === 'pending' && i.requestedBy?.id === session.participant.id}
+          onRemove={(i) => remove.mutate(i.id)}
+        />
+        {remove.isError && <p className="mt-2 text-sm text-danger">{errorMessage(remove.error)}</p>}
+      </section>
+
       <section className="mb-8 rounded-lg bg-surface-raised p-5">
         <h2 className="mb-3 font-semibold">En la sala</h2>
         <ul className="space-y-2">
@@ -66,9 +89,6 @@ function GuestRoom({ session, onLeave }: { session: GuestSession; onLeave: () =>
         </ul>
       </section>
 
-      <p className="mb-6 text-sm text-muted">
-        Pedir canciones llega en la siguiente fase, junto con YouTube y Spotify.
-      </p>
       <Button
         variant="secondary"
         size="lg"
