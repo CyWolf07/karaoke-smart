@@ -3,7 +3,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import {
   ConnectedSocket,
   MessageBody,
-  OnGatewayConnection,
+  OnGatewayInit,
   OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
@@ -34,7 +34,7 @@ const channel = (roomId: string) => `room:${roomId}`;
  * Toda conexión se autentica en el handshake, con token de usuario o de invitado.
  */
 @WebSocketGateway({ namespace: '/realtime' })
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway implements OnGatewayInit, OnGatewayDisconnect {
   private readonly logger = new Logger(RealtimeGateway.name);
   @WebSocketServer() private readonly nsp!: Namespace<
     ClientToServerEvents,
@@ -48,21 +48,29 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     @Inject(forwardRef(() => RoomsService)) private readonly rooms: RoomsService,
   ) {}
 
-  async handleConnection(client: AppSocket): Promise<void> {
-    const token = (client.handshake.auth as { token?: string } | undefined)?.token;
-    try {
-      if (!token) throw new Error('missing token');
+  /**
+   * Autenticación en el handshake (middleware): la conexión no se acepta hasta validar el
+   * token, así ningún evento llega antes de conocer al usuario o invitado.
+   */
+  afterInit(nsp: Namespace): void {
+    nsp.use((socket, next) => {
+      const token = (socket.handshake.auth as { token?: string } | undefined)?.token;
+      if (!token) return next(new Error('Token requerido'));
+      const data = socket.data as SocketData;
+      data.rooms = [];
       try {
-        client.data.user = this.auth.verifyAccessToken(token);
+        data.user = this.auth.verifyAccessToken(token);
+        return next();
       } catch {
-        client.data.guest = await this.rooms.verifyGuest(token);
+        this.rooms
+          .verifyGuest(token)
+          .then((guest) => {
+            data.guest = guest;
+            next();
+          })
+          .catch(() => next(new Error('Token inválido')));
       }
-    } catch {
-      client.emit('error', { statusCode: 401, error: 'Unauthorized', message: 'Token inválido' });
-      client.disconnect(true);
-      return;
-    }
-    client.data.rooms = [];
+    });
   }
 
   async handleDisconnect(client: AppSocket): Promise<void> {

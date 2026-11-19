@@ -34,7 +34,14 @@ export function useRoomPresence(roomId: string | undefined, getToken: () => stri
     });
     socket.on('error', (e) => setError(e.message));
     socket.on('disconnect', () => setStatus('desconectado'));
-    socket.on('connect_error', () => setStatus('desconectado'));
+    socket.on('connect_error', (e) => {
+      setStatus('desconectado');
+      // Token rechazado (p. ej. sala cerrada o invitado expulsado): no tiene sentido reintentar.
+      if (/token/i.test(e.message)) {
+        setError('Ya no tienes acceso a esta sala');
+        socket.close();
+      }
+    });
     socket.io.on('reconnect_attempt', () => setStatus('conectando'));
     socket.connect();
     return () => {

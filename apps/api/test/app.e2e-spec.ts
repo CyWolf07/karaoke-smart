@@ -142,7 +142,7 @@ describe('API (integración)', () => {
     const url = `http://localhost:${port}/realtime`;
 
     const anon = io(url, { transports: ['websocket'], auth: {} });
-    await new Promise<void>((resolve) => anon.on('disconnect', () => resolve()));
+    await new Promise<void>((resolve) => anon.on('connect_error', () => resolve()));
     anon.close();
 
     const sock = io(url, { transports: ['websocket'], auth: { token: accessToken } });
