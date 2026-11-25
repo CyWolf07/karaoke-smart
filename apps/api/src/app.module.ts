@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { validateEnv } from './config/env';
 import { PrismaModule } from './database/prisma.service';
+import { DownloadModule } from './download/download.controller';
 import { HealthModule } from './health/health.controller';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { RoomsModule } from './rooms/rooms.module';
@@ -37,6 +38,7 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     RedisModule,
     HealthModule,
+    DownloadModule,
     AuthModule,
     UsersModule,
     OrganizationsModule,

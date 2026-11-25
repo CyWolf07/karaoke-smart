@@ -1,5 +1,6 @@
 import { LayoutDashboard, Mic, Smartphone, Tv } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { DownloadApp } from '@/components/DownloadApp';
 
 const OPTIONS = [
   {
@@ -47,6 +48,7 @@ export function HomePage() {
           </Link>
         ))}
       </div>
+      <DownloadApp withQr className="mt-10" />
     </div>
   );
 }

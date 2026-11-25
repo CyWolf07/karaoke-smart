@@ -15,6 +15,11 @@ export const envSchema = z.object({
   LIVEKIT_API_SECRET: z.string().optional(),
   /** Opcional: activa la búsqueda. Sin ella, se piden canciones pegando el enlace de YouTube. */
   YOUTUBE_API_KEY: z.string().optional(),
+  /** APK publicado en EAS; se puede cambiar en Render sin volver a desplegar el código. */
+  ANDROID_APK_URL: z
+    .string()
+    .url()
+    .default('https://expo.dev/artifacts/eas/PH5WftaESOt1PU5X6kO1ivIUL75GIlN_dGXlRFKNy_4.apk'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 

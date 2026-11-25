@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { LogOut, Mic } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { DownloadApp } from '@/components/DownloadApp';
 import { QueueList } from '@/components/QueueList';
 import { SongPicker } from '@/components/SongPicker';
 import { StatusDot } from '@/components/StatusDot';
@@ -160,12 +161,19 @@ function JoinForm({ onJoined }: { onJoined: (s: GuestSession) => void }) {
           {join.isPending ? 'Entrando…' : 'Entrar'}
         </Button>
       </form>
-      <p className="mt-auto pt-10 text-center text-sm text-muted">
-        ¿Eres el anfitrión?{' '}
-        <Link to="/login" className="text-primary hover:underline">
-          Inicia sesión
-        </Link>
+      <p className="mt-4 text-center text-xs text-muted">
+        Consejo: abre la cámara del celular y apunta al QR de la pantalla; te trae aquí con el
+        código puesto.
       </p>
+      <div className="mt-auto space-y-6 pt-10">
+        <DownloadApp className="justify-center text-center" />
+        <p className="text-center text-sm text-muted">
+          ¿Eres el anfitrión?{' '}
+          <Link to="/login" className="text-primary hover:underline">
+            Inicia sesión
+          </Link>
+        </p>
+      </div>
     </>
   );
 }

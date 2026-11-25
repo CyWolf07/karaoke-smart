@@ -46,7 +46,7 @@ export function SongPicker({ roomId, token }: { roomId: string; token?: string }
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Busca una canción o pega el enlace de YouTube"
+          placeholder="Canción o enlace de YouTube"
           enterKeyHint="search"
           autoComplete="off"
           aria-label="Buscar canción o enlace de YouTube"

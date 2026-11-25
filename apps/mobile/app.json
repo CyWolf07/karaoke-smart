@@ -7,16 +7,26 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0a0a0b",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Karaoke Smart usa la cámara solo para escanear el código QR de la sala.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     },
     "android": {
       "package": "com.karaokesmart.app",
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": ["CAMERA"],
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
     },
     "extra": {
-      "apiUrl": "http://10.0.2.2:3000",
+      "apiUrl": "https://karaoke-smart.onrender.com",
       "router": {
         "origin": false
       },

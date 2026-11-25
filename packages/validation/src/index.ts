@@ -42,6 +42,19 @@ export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 export const joinRoomSchema = z.object({ code: joinCodeSchema, nickname: nicknameSchema });
 export type JoinRoomInput = z.infer<typeof joinRoomSchema>;
 
+/**
+ * Código de sala a partir de lo que lea el escáner: la URL del QR (…/join?code=XXXXXX)
+ * o el código suelto. Devuelve null si no es un código válido.
+ */
+export function parseJoinCode(scanned: string): string | null {
+  const raw = scanned.trim();
+  let candidate = raw;
+  const m = raw.match(/[?&]code=([^&#\s]+)/i);
+  if (m) candidate = decodeURIComponent(m[1]);
+  const r = joinCodeSchema.safeParse(candidate);
+  return r.success ? r.data : null;
+}
+
 /** ID de vídeo de YouTube (11 caracteres). */
 export const youtubeIdSchema = z.string().regex(/^[A-Za-z0-9_-]{11}$/, 'Vídeo de YouTube inválido');
 export const addToQueueSchema = z.object({ videoId: youtubeIdSchema });
