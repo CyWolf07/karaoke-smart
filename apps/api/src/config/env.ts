@@ -19,7 +19,7 @@ export const envSchema = z.object({
   ANDROID_APK_URL: z
     .string()
     .url()
-    .default('https://expo.dev/artifacts/eas/PH5WftaESOt1PU5X6kO1ivIUL75GIlN_dGXlRFKNy_4.apk'),
+    .default('https://expo.dev/artifacts/eas/_mZkGyrgxxwY4BdBFWYYdz8iaPJE_UTHoNGrpuvLtL0.apk'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 
