@@ -8,6 +8,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        // Versión nueva activa al momento (sin quedarse con la web vieja en caché).
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
+        // La API, Swagger, la descarga del APK y Socket.IO nunca se sirven desde el SPA.
+        navigateFallbackDenylist: [/^\/v\d+\//, /^\/docs/, /^\/socket\.io/],
+      },
       manifest: {
         name: 'Karaoke Smart',
         short_name: 'Karaoke',
